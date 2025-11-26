@@ -13,7 +13,6 @@ import {
   getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc 
 } from 'firebase/firestore';
 
-// --- Firebase Configuration ---
 const firebaseConfig = {
   apiKey: "AIzaSyDnkS3ehdIRb1A5efBOJSb4D9fmYaRACQc",
   authDomain: "cloud-kitchen-4a032.firebaseapp.com",
@@ -179,6 +178,7 @@ function MainApp({ setAppError }) {
   const [checkoutInfo, setCheckoutInfo] = useState({ 
     phone: '', email: '', deliveryDate: '', deliveryTime: '', instructions: '' 
   });
+  // DEFAULTS: Bengaluru and Kodichikanahalli
   const [addrDetails, setAddrDetails] = useState({ 
     flat: '', street: 'Kodichikanahalli', landmark: '', city: 'Bengaluru' 
   });
@@ -294,7 +294,14 @@ function MainApp({ setAppError }) {
   const placeOrder = async () => {
     if (cart.length === 0) return;
     const cleanEmail = checkoutInfo.email.trim();
-    if (!cleanEmail.includes('@')) { alert("Invalid Email"); return; }
+    
+    // VALIDATION - STRICT CHECKS
+    if (!cleanEmail.includes('@')) { alert("Valid Email is mandatory."); return; }
+    if (!checkoutInfo.phone || checkoutInfo.phone.length < 10) { alert("Valid Phone number is mandatory."); return; }
+    if (!addrDetails.flat) { alert("Flat / House No is mandatory."); return; }
+    if (!addrDetails.street) { alert("Street is mandatory."); return; }
+    if (!addrDetails.city) { alert("City is mandatory."); return; }
+    if (!checkoutInfo.deliveryDate || !checkoutInfo.deliveryTime) { alert("Delivery Date and Time are mandatory."); return; }
     
     const shortId = Math.floor(1000 + Math.random() * 9000).toString();
     const fullAddress = `Flat: ${addrDetails.flat}, ${addrDetails.street}, ${addrDetails.landmark}, ${addrDetails.city}`;
@@ -439,8 +446,8 @@ function MainApp({ setAppError }) {
                     {orders.length === 0 ? <p className="text-gray-500">No active orders.</p> : orders.map(o => (
                         <div key={o.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 text-black relative">
                         <div className="flex justify-between mb-2 pr-8">
-                            <span className="font-bold text-[#2D8F5F]">#{o.shortId}</span>
-                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${o.status==='Pending'?'bg-yellow-100 text-yellow-800':o.status==='Accepted'?'bg-green-100 text-green-800':'bg-blue-100 text-blue-800'}`}>{o.status}</span>
+                            <span className="font-bold text-[#2D8F5F]">#{o.shortId || (o.id ? o.id.slice(-4) : '...')}</span>
+                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${o.status==='Pending'?'bg-yellow-100 text-yellow-800':o.status==='Accepted'?'bg-green-100 text-green-800':o.status==='Delivered'?'bg-blue-100 text-blue-800':'bg-red-100 text-red-800'}`}>{o.status}</span>
                         </div>
                         <button onClick={() => deleteDoc(doc(db,'artifacts',appId,'public','data',ORDERS_PATH,o.id))} className="absolute top-4 right-4 text-red-400"><Trash2 size={18}/></button>
                         <div className="mb-3 border-b border-dashed pb-2">
@@ -670,8 +677,19 @@ function MainApp({ setAppError }) {
                     <input placeholder="Email (Mandatory)" className="w-full p-3 border rounded text-black" onChange={e=>setCheckoutInfo({...checkoutInfo, email:e.target.value})}/>
                     <input placeholder="Phone" className="w-full p-3 border rounded text-black" onChange={e=>setCheckoutInfo({...checkoutInfo, phone:e.target.value})}/>
                     <div className="space-y-2">
-                      <button onClick={handleGpsCheck} className="text-[#2D8F5F] text-xs font-bold flex items-center gap-1"><MapPin size={12}/> {isLocating ? 'Locating...' : 'Use GPS Location'}</button>
-                      <input placeholder="Flat / House No" className="w-full p-3 border rounded text-black" onChange={e=>setAddrDetails({...addrDetails, flat:e.target.value})}/>
+                      <div className="flex items-center gap-2 mb-2">
+                        <input 
+                          type="checkbox" 
+                          id="gps-toggle"
+                          checked={attachGps} 
+                          onChange={handleGpsCheck}
+                          className="w-4 h-4 accent-[#2D8F5F]"
+                        />
+                        <label htmlFor="gps-toggle" className="text-xs font-bold text-[#2D8F5F] cursor-pointer">
+                          {isLocating ? 'Locating...' : 'Use Current Location (GPS)'}
+                        </label>
+                      </div>
+                      <input placeholder="Flat / House No" className="w-full p-3 border rounded text-black" value={addrDetails.flat} onChange={e=>setAddrDetails({...addrDetails, flat:e.target.value})}/>
                       <input placeholder="Street" className="w-full p-3 border rounded text-black" value={addrDetails.street} onChange={e=>setAddrDetails({...addrDetails, street:e.target.value})}/>
                       <div className="grid grid-cols-2 gap-2">
                         <input placeholder="Landmark" className="p-3 border rounded text-black" onChange={e=>setAddrDetails({...addrDetails, landmark:e.target.value})}/>

@@ -7,5 +7,6 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: ['untugged-forgetfully-ardith.ngrok-free.dev']
-  }
+  },
+  base: '/cloud-kitchen/'
 })
