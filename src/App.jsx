@@ -13,6 +13,7 @@ import {
   getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc 
 } from 'firebase/firestore';
 
+// --- Firebase Configuration ---
 const firebaseConfig = {
   apiKey: "AIzaSyDnkS3ehdIRb1A5efBOJSb4D9fmYaRACQc",
   authDomain: "cloud-kitchen-4a032.firebaseapp.com",
@@ -81,7 +82,6 @@ const ShimmerCard = () => (
   </div>
 );
 
-// UPDATED: Now accepts cart and updateQuantity to allow adding from the modal
 const FoodDetailModal = ({ item, onClose, cart, updateQuantity }) => {
   if (!item) return null;
   const qty = cart.find(c => c.id === item.id)?.qty || 0;
@@ -112,7 +112,6 @@ const FoodDetailModal = ({ item, onClose, cart, updateQuantity }) => {
                 {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(item.price || 0)}
             </div>
             
-            {/* Add Button inside Modal */}
             {qty === 0 ? (
                 <button onClick={() => updateQuantity(item, 1)} className="bg-[#2D8F5F] text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-[#24734d] transition active:scale-95">
                     ADD
@@ -132,9 +131,9 @@ const FoodDetailModal = ({ item, onClose, cart, updateQuantity }) => {
 };
 
 const CAROUSEL_ITEMS = [
-  { id: 1, title: "Kerala Meals", sub: "Authentic Taste", img: "https://img.sanishtech.com/u/07185d20881b009c84cc098902cd1ffb.png" },
-  { id: 2, title: "Spicy Maggi", sub: "Midnight Craving", img: "https://img.sanishtech.com/u/d98b00fd3b59424381b78606a24f8938.png" },
-  { id: 3, title: "Porotta & Beef", sub: "Chef's Special", img: "https://img.sanishtech.com/u/3958d1f749d7261eefa07006160cf0ae.png" }
+  { id: 1, title: "Kerala Meals", sub: "Authentic Taste", img: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=800&q=80" },
+  { id: 2, title: "Spicy Maggi", sub: "Midnight Craving", img: "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=800&q=80" },
+  { id: 3, title: "Porotta & Beef", sub: "Chef's Special", img: "https://images.unsplash.com/photo-1645113817961-673236a23a64?auto=format&fit=crop&w=800&q=80" }
 ];
 
 export default function CloudKitchenPremium() {
@@ -154,8 +153,6 @@ function MainApp({ setAppError }) {
   const [currentView, setCurrentView] = useState('menu'); 
   
   const [menu, setMenu] = useState([]);
-  
-  // UPDATED: Initialize cart from localStorage if available
   const [cart, setCart] = useState(() => {
     try {
         const saved = localStorage.getItem('cloudKitchenCart');
@@ -178,7 +175,6 @@ function MainApp({ setAppError }) {
   const [checkoutInfo, setCheckoutInfo] = useState({ 
     phone: '', email: '', deliveryDate: '', deliveryTime: '', instructions: '' 
   });
-  // DEFAULTS: Bengaluru and Kodichikanahalli
   const [addrDetails, setAddrDetails] = useState({ 
     flat: '', street: 'Kodichikanahalli', landmark: '', city: 'Bengaluru' 
   });
@@ -195,8 +191,6 @@ function MainApp({ setAppError }) {
   const cartIconRef = useRef(null);
 
   // --- Effects ---
-  
-  // Save cart to local storage whenever it changes
   useEffect(() => {
     localStorage.setItem('cloudKitchenCart', JSON.stringify(cart));
   }, [cart]);
@@ -209,13 +203,34 @@ function MainApp({ setAppError }) {
     };
     initAuth();
 
+    // Handle manual hash change for Admin Access
+    const handleHashChange = () => {
+      if (window.location.hash === '#admin') {
+         setCurrentView('admin-login');
+      } else if (!auth.currentUser) {
+         // Only redirect to menu if not logged in (to allow user to navigate back from login)
+         setCurrentView('menu');
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+
+    // Initial check
+    if (window.location.hash === '#admin') {
+        setCurrentView('admin-login');
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && user.email === ADMIN_EMAIL) {
         setIsAdmin(true);
         setCurrentView('admin-orders');
       } else {
         setIsAdmin(false);
-        if (['admin-orders', 'admin-menu'].includes(currentView)) setCurrentView('menu');
+        // If NOT logged in, only show admin-login if hash matches, otherwise menu
+        if (window.location.hash === '#admin') {
+            setCurrentView('admin-login');
+        } else {
+            setCurrentView('menu');
+        }
       }
       setTimeout(() => setLoading(false), 2000);
     });
@@ -230,7 +245,11 @@ function MainApp({ setAppError }) {
       try { Notification.requestPermission(); } catch(e) {}
     }
 
-    return () => { unsubscribe(); unsubMenu(); };
+    return () => { 
+        unsubscribe(); 
+        unsubMenu(); 
+        window.removeEventListener('hashchange', handleHashChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -291,11 +310,62 @@ function MainApp({ setAppError }) {
     });
   };
 
+  const handleGpsCheck = (e) => {
+    if (e.target.checked) {
+      setAttachGps(true);
+      setIsLocating(true);
+      
+      if (!navigator.geolocation) {
+         alert("GPS is not supported by your browser.");
+         setIsLocating(false);
+         setAttachGps(false);
+         return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setGpsCoords({ lat: latitude, lng: longitude });
+          
+          try {
+            // Reverse Geocoding
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            const data = await res.json();
+            if(data.address) {
+              setAddrDetails(prev => ({
+                ...prev,
+                street: data.address.road || prev.street,
+                city: data.address.city || data.address.state_district || prev.city,
+                landmark: data.address.suburb || prev.landmark
+              }));
+            }
+          } catch(err) {
+            console.log("Address lookup failed, but coordinates captured.");
+          }
+          setIsLocating(false);
+        },
+        (error) => {
+          let msg = "GPS failed.";
+          if (error.code === 1) msg = "Location permission denied. Please enable location access.";
+          else if (error.code === 2) msg = "Location unavailable.";
+          else if (error.code === 3) msg = "Location request timed out.";
+          
+          alert(msg);
+          setIsLocating(false);
+          setAttachGps(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      setAttachGps(false);
+      setGpsCoords(null);
+    }
+  };
+
   const placeOrder = async () => {
     if (cart.length === 0) return;
     const cleanEmail = checkoutInfo.email.trim();
     
-    // VALIDATION - STRICT CHECKS
     if (!cleanEmail.includes('@')) { alert("Valid Email is mandatory."); return; }
     if (!checkoutInfo.phone || checkoutInfo.phone.length < 10) { alert("Valid Phone number is mandatory."); return; }
     if (!addrDetails.flat) { alert("Flat / House No is mandatory."); return; }
@@ -318,7 +388,7 @@ function MainApp({ setAppError }) {
       const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', ORDERS_PATH), newOrder);
       setUserOrder({ ...newOrder, id: docRef.id });
       setCart([]);
-      localStorage.removeItem('cloudKitchenCart'); // Clear cart from local storage on success
+      localStorage.removeItem('cloudKitchenCart'); 
       setShowCartSheet(false);
       setTrackEmail(cleanEmail);
       setCurrentView('track');
@@ -374,26 +444,6 @@ function MainApp({ setAppError }) {
     setLoginError('');
     if (firebaseConfig.apiKey === "YOUR_API_KEY") { setLoginError("CONFIG ERROR"); return; }
     try { await signInWithEmailAndPassword(auth, adminCreds.email, adminCreds.password); } catch (err) { setLoginError("Login Failed: " + err.message); }
-  };
-
-  const handleGpsCheck = (e) => {
-    if (e.target.checked) {
-      setAttachGps(true); setIsLocating(true);
-      if (!navigator.geolocation) { alert("GPS not supported"); setIsLocating(false); setAttachGps(false); return; }
-      navigator.geolocation.getCurrentPosition(async (pos) => {
-          const { latitude, longitude } = pos.coords;
-          setGpsCoords({ lat: latitude, lng: longitude });
-          try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            const data = await res.json();
-            if(data.address) {
-              setAddrDetails(prev => ({ ...prev, street: data.address.road || prev.street, city: data.address.city || prev.city, landmark: data.address.suburb || prev.landmark }));
-            }
-          } catch(err) {}
-          setIsLocating(false);
-        }, () => { alert("GPS failed."); setIsLocating(false); setAttachGps(false); }, { enableHighAccuracy: true }
-      );
-    } else { setAttachGps(false); setGpsCoords(null); }
   };
 
   if (loading) return <DoodleLoader />;
@@ -544,7 +594,6 @@ function MainApp({ setAppError }) {
              <ShoppingBag />
              {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">{cart.length}</span>}
            </div>
-           <button onClick={() => setCurrentView('admin-login')} className="text-xs font-bold border px-2 py-1 rounded">Admin</button>
         </div>
       </div>
 
@@ -583,41 +632,39 @@ function MainApp({ setAppError }) {
 
             <div className="space-y-4">
               {menu.length === 0 && <ShimmerCard/>}
-              {getFilteredMenu().map(item => {
-                const qty = cart.find(c => c.id === item.id)?.qty || 0;
-                return (
-                  <div key={item.id} className={`p-3 rounded-xl shadow-sm border flex gap-4 items-center ${darkMode ? 'bg-[#2a2a2a] border-[#333]' : 'bg-white border-gray-100'}`}>
-                    <div className="w-24 h-24 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0" onClick={() => setSelectedItem(item)}>
-                      <img src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"} className="w-full h-full object-cover" alt={item.name}/>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between mb-1">
-                        <div>
-                          <h3 className="font-bold">{item.name}</h3>
-                          <div className="flex items-center gap-1 text-xs mt-1"><Star size={10} className="text-yellow-500 fill-yellow-500"/> {item.rating}</div>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-[#2D8F5F] font-bold">{formatPrice(item.price)}</span>
-                          <div className={`w-3 h-3 rounded-full border mt-1 ${item.type==='veg'?'border-green-600 bg-green-600':'border-red-600 bg-red-600'}`}></div>
-                        </div>
-                      </div>
-                      <p className="text-xs opacity-60 mb-3 line-clamp-2">{item.description}</p>
-                      
-                      {qty === 0 ? (
-                        <button onClick={() => updateQuantity(item, 1)} className="bg-white text-[#2D8F5F] border border-[#2D8F5F] px-6 py-2 rounded-lg text-sm font-extrabold shadow-sm uppercase tracking-wide hover:bg-[#2D8F5F] hover:text-white transition-colors active:scale-95">
-                          ADD
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-3 bg-[#2D8F5F] text-white rounded-lg px-2 py-1 w-max shadow-lg shadow-green-200/50">
-                          <button onClick={() => updateQuantity(item, -1)} className="p-1 hover:bg-white/20 rounded active:scale-95 transition"><Minus size={16}/></button>
-                          <span className="font-bold w-4 text-center">{qty}</span>
-                          <button onClick={() => updateQuantity(item, 1)} className="p-1 hover:bg-white/20 rounded active:scale-95 transition"><Plus size={16}/></button>
-                        </div>
-                      )}
-                    </div>
+              {getFilteredMenu().map(item => (
+                <div key={item.id} className={`p-3 rounded-xl shadow-sm border flex gap-4 items-center ${darkMode ? 'bg-[#2a2a2a] border-[#333]' : 'bg-white border-gray-100'}`}>
+                  <div className="w-24 h-24 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0" onClick={() => setSelectedItem(item)}>
+                    <img src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"} className="w-full h-full object-cover" alt={item.name}/>
                   </div>
-                );
-              })}
+                  <div className="flex-1">
+                    <div className="flex justify-between mb-1">
+                      <div>
+                        <h3 className="font-bold">{item.name}</h3>
+                        <div className="flex items-center gap-1 text-xs mt-1"><Star size={10} className="text-yellow-500 fill-yellow-500"/> {item.rating}</div>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[#2D8F5F] font-bold">{formatPrice(item.price)}</span>
+                        <div className={`w-3 h-3 rounded-full border mt-1 ${item.type==='veg'?'border-green-600 bg-green-600':'border-red-600 bg-red-600'}`}></div>
+                      </div>
+                    </div>
+                    <p className="text-xs opacity-60 mb-3 line-clamp-2">{item.description}</p>
+                    
+                    {/* --- ADD / COUNTER BUTTON --- */}
+                    {cart.find(c => c.id === item.id) ? (
+                      <div className="flex items-center gap-3 bg-[#2D8F5F] text-white rounded-lg px-2 py-1 w-max shadow-lg shadow-green-200/50">
+                        <button onClick={() => updateQuantity(item, -1)} className="p-1 hover:bg-white/20 rounded active:scale-90 transition"><Minus size={16}/></button>
+                        <span className="font-bold w-4 text-center">{cart.find(c => c.id === item.id).qty}</span>
+                        <button onClick={() => updateQuantity(item, 1)} className="p-1 hover:bg-white/20 rounded active:scale-90 transition"><Plus size={16}/></button>
+                      </div>
+                    ) : (
+                      <button onClick={() => updateQuantity(item, 1)} className="bg-white text-[#2D8F5F] border border-[#2D8F5F] px-6 py-2 rounded-lg text-sm font-extrabold shadow-sm uppercase tracking-wide hover:bg-[#2D8F5F] hover:text-white transition-colors active:scale-95">
+                        ADD
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
