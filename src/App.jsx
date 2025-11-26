@@ -132,9 +132,9 @@ const FoodDetailModal = ({ item, onClose, cart, updateQuantity }) => {
 };
 
 const CAROUSEL_ITEMS = [
-  { id: 1, title: "Kerala Meals", sub: "Authentic Taste", img: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=800&q=80" },
-  { id: 2, title: "Spicy Maggi", sub: "Midnight Craving", img: "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=800&q=80" },
-  { id: 3, title: "Porotta & Beef", sub: "Chef's Special", img: "https://images.unsplash.com/photo-1645113817961-673236a23a64?auto=format&fit=crop&w=800&q=80" }
+  { id: 1, title: "Kerala Meals", sub: "Authentic Taste", img: "https://img.sanishtech.com/u/07185d20881b009c84cc098902cd1ffb.png" },
+  { id: 2, title: "Spicy Maggi", sub: "Midnight Craving", img: "https://img.sanishtech.com/u/d98b00fd3b59424381b78606a24f8938.png" },
+  { id: 3, title: "Porotta & Beef", sub: "Chef's Special", img: "https://img.sanishtech.com/u/3958d1f749d7261eefa07006160cf0ae.png" }
 ];
 
 export default function CloudKitchenPremium() {
