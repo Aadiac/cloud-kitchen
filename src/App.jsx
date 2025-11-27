@@ -3,7 +3,8 @@ import {
   ShoppingBag, Plus, Minus, Trash2, ChefHat, MapPin, Phone, CheckCircle, 
   XCircle, Clock, Menu, Home, LogOut, User, Loader, Search, ArrowRight, 
   Eye, EyeOff, Calendar, Mail, FileText, Moon, Sun, ToggleLeft, ToggleRight, 
-  Navigation, Star, Filter, X, TrendingUp, Bell, Bike, Utensils, Coffee, Pizza
+  Navigation, Star, Filter, X, TrendingUp, Bell, Bike, Utensils, Coffee, Pizza,
+  Box, Heart
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -41,6 +42,7 @@ const ADMIN_EMAIL = "admin@kitchen.com";
 
 // --- Helper Components ---
 
+// 1. Doodle Art Loader (Updated Branding - Geometric Kalavara)
 const DoodleLoader = () => (
   <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#FAF9F6] transition-opacity duration-500">
     <div className="absolute inset-0 overflow-hidden opacity-20 pointer-events-none flex flex-wrap justify-center items-center gap-16 p-10">
@@ -49,13 +51,26 @@ const DoodleLoader = () => (
        <Coffee size={56} className="text-[#A0522D] animate-bounce" style={{ animationDuration: '2.5s' }} />
        <Utensils size={72} className="text-[#2D8F5F] animate-pulse" style={{ animationDuration: '3s' }} />
     </div>
+
     <div className="relative z-10 text-center">
-      <div className="w-24 h-24 bg-[#2D8F5F] rounded-full flex items-center justify-center shadow-2xl mb-6 mx-auto animate-pulse border-4 border-[#FAF9F6]">
-        <ChefHat className="text-[#FAF9F6]" size={48} />
+      <div className="w-24 h-24 bg-[#FFD700] rounded-full flex items-center justify-center shadow-xl mb-6 mx-auto animate-bounce border-4 border-white">
+        <ChefHat className="text-black" size={48} />
       </div>
-      <h1 className="text-4xl font-black text-[#2D8F5F] tracking-tight drop-shadow-sm">CloudKitchen</h1>
-      <div className="h-1 w-16 bg-[#A0522D] mx-auto my-3 rounded-full"></div>
-      <p className="text-[#A0522D] font-bold text-xs tracking-widest uppercase">Fresh • Fast • Tasty</p>
+      {/* Minimal Geometric Logo */}
+      <div className="relative inline-block">
+        <h1 className="text-6xl font-black tracking-tight text-black lowercase" style={{ fontFamily: 'sans-serif' }}>
+          kalavara
+        </h1>
+        <Heart 
+            size={24} 
+            fill="#E07A5F" 
+            className="text-[#E07A5F] absolute -top-2 -right-4 animate-pulse" 
+            style={{ transform: 'rotate(15deg)' }}
+        />
+      </div>
+      <div className="mt-4 px-4 py-1 bg-[#A0522D] text-white rounded-full inline-block text-xs font-bold tracking-widest uppercase shadow-sm">
+        Fresh • Fast • Tasty
+      </div>
     </div>
   </div>
 );
@@ -131,9 +146,9 @@ const FoodDetailModal = ({ item, onClose, cart, updateQuantity }) => {
 };
 
 const CAROUSEL_ITEMS = [
-  { id: 1, title: "Kerala Meals", sub: "Authentic Taste", img: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=800&q=80" },
-  { id: 2, title: "Spicy Maggi", sub: "Midnight Craving", img: "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=800&q=80" },
-  { id: 3, title: "Porotta & Beef", sub: "Chef's Special", img: "https://images.unsplash.com/photo-1645113817961-673236a23a64?auto=format&fit=crop&w=800&q=80" }
+  { id: 1, title: "Kerala Meals", sub: "Authentic Taste", img: "https://img.sanishtech.com/u/07185d20881b009c84cc098902cd1ffb.png" },
+  { id: 2, title: "Spicy Maggi", sub: "Midnight Craving", img: "https://img.sanishtech.com/u/0fd44cfd2861024a6a6f8519efdfc862.jpg" },
+  { id: 3, title: "Porotta & Beef", sub: "Chef's Special", img: "https://img.sanishtech.com/u/3958d1f749d7261eefa07006160cf0ae.png" }
 ];
 
 export default function CloudKitchenPremium() {
@@ -203,34 +218,13 @@ function MainApp({ setAppError }) {
     };
     initAuth();
 
-    // Handle manual hash change for Admin Access
-    const handleHashChange = () => {
-      if (window.location.hash === '#admin') {
-         setCurrentView('admin-login');
-      } else if (!auth.currentUser) {
-         // Only redirect to menu if not logged in (to allow user to navigate back from login)
-         setCurrentView('menu');
-      }
-    };
-    window.addEventListener('hashchange', handleHashChange);
-
-    // Initial check
-    if (window.location.hash === '#admin') {
-        setCurrentView('admin-login');
-    }
-
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && user.email === ADMIN_EMAIL) {
         setIsAdmin(true);
         setCurrentView('admin-orders');
       } else {
         setIsAdmin(false);
-        // If NOT logged in, only show admin-login if hash matches, otherwise menu
-        if (window.location.hash === '#admin') {
-            setCurrentView('admin-login');
-        } else {
-            setCurrentView('menu');
-        }
+        if (['admin-orders', 'admin-menu'].includes(currentView)) setCurrentView('menu');
       }
       setTimeout(() => setLoading(false), 2000);
     });
@@ -245,11 +239,7 @@ function MainApp({ setAppError }) {
       try { Notification.requestPermission(); } catch(e) {}
     }
 
-    return () => { 
-        unsubscribe(); 
-        unsubMenu(); 
-        window.removeEventListener('hashchange', handleHashChange);
-    };
+    return () => { unsubscribe(); unsubMenu(); };
   }, []);
 
   useEffect(() => {
@@ -314,7 +304,6 @@ function MainApp({ setAppError }) {
     if (e.target.checked) {
       setAttachGps(true);
       setIsLocating(true);
-      
       if (!navigator.geolocation) {
          alert("GPS is not supported by your browser.");
          setIsLocating(false);
@@ -328,7 +317,6 @@ function MainApp({ setAppError }) {
           setGpsCoords({ lat: latitude, lng: longitude });
           
           try {
-            // Reverse Geocoding
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
             const data = await res.json();
             if(data.address) {
@@ -346,10 +334,7 @@ function MainApp({ setAppError }) {
         },
         (error) => {
           let msg = "GPS failed.";
-          if (error.code === 1) msg = "Location permission denied. Please enable location access.";
-          else if (error.code === 2) msg = "Location unavailable.";
-          else if (error.code === 3) msg = "Location request timed out.";
-          
+          if (error.code === 1) msg = "Location permission denied.";
           alert(msg);
           setIsLocating(false);
           setAttachGps(false);
@@ -357,8 +342,8 @@ function MainApp({ setAppError }) {
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
-      setAttachGps(false);
       setGpsCoords(null);
+      setIsLocating(false);
     }
   };
 
@@ -541,7 +526,7 @@ function MainApp({ setAppError }) {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                     <select className="w-full p-2 border rounded" value={newItem.category} onChange={e=>setNewItem({...newItem, category:e.target.value})}>
-                        <option>Main</option><option>Snack</option><option>Drink</option><option>Dessert</option>
+                        <option>Main</option><option>Combos</option><option>Drink</option><option>Dessert</option>
                     </select>
                     <select className="w-full p-2 border rounded" value={newItem.type} onChange={e=>setNewItem({...newItem, type:e.target.value})}>
                         <option value="veg">Veg</option><option value="non-veg">Non-Veg</option>
@@ -581,8 +566,12 @@ function MainApp({ setAppError }) {
     <div className={`min-h-screen pb-24 ${darkMode ? 'bg-[#1a1a1a] text-white' : 'bg-[#FAF9F6] text-[#333333]'}`}>
       <div className={`sticky top-0 z-30 px-4 py-3 flex justify-between items-center shadow-sm ${darkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}>
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('menu')}>
-          <ChefHat className="text-[#2D8F5F]" size={24}/>
-          <span className="font-extrabold text-lg">CloudKitchen</span>
+          <div className="bg-[#2D8F5F] p-1.5 rounded-lg shadow-lg shadow-green-200/50"><ChefHat className="text-white" size={20}/></div>
+          {/* UPDATED HEADER LOGO - English Clean Style */}
+          <div className="relative">
+             <span className="font-black text-2xl leading-none text-[#2D8F5F] tracking-tight lowercase" style={{fontFamily: 'sans-serif'}}>kalavara</span>
+             <Heart size={12} fill="#E07A5F" className="text-[#E07A5F] absolute -top-1 -right-2" style={{transform: 'rotate(15deg)'}} />
+          </div>
         </div>
         <div className="flex items-center gap-4">
            <div className={`flex items-center transition-all ${isSearchOpen ? 'w-40 bg-gray-100 dark:bg-[#333] rounded-full px-3 py-1' : 'w-8'}`}>
@@ -590,6 +579,16 @@ function MainApp({ setAppError }) {
              {isSearchOpen && <input autoFocus placeholder="Search..." className="bg-transparent border-none outline-none ml-2 w-full text-sm text-black dark:text-white" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>}
            </div>
            <button onClick={() => setDarkMode(!darkMode)}><Moon size={20}/></button>
+           
+           {/* ADDED: Track Order Button */}
+           <button 
+             onClick={() => setCurrentView('track')} 
+             className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-[#2D8F5F] transition-transform active:scale-90"
+             title="Track Your Order"
+           >
+             <MapPin size={20} />
+           </button>
+
            <div className="relative cursor-pointer" onClick={() => setShowCartSheet(true)}>
              <ShoppingBag />
              {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">{cart.length}</span>}
@@ -612,7 +611,7 @@ function MainApp({ setAppError }) {
             </div>
 
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {['All', 'Main', 'Snack', 'Drink', 'Dessert'].map(cat => (
+              {['All', 'Main', 'Combos', 'Drink', 'Dessert'].map(cat => (
                 <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap ${selectedCategory === cat ? 'bg-[#2D8F5F] text-white' : 'bg-white text-gray-600 border'}`}>{cat}</button>
               ))}
             </div>
@@ -631,40 +630,50 @@ function MainApp({ setAppError }) {
             </div>
 
             <div className="space-y-4">
-              {menu.length === 0 && <ShimmerCard/>}
-              {getFilteredMenu().map(item => (
-                <div key={item.id} className={`p-3 rounded-xl shadow-sm border flex gap-4 items-center ${darkMode ? 'bg-[#2a2a2a] border-[#333]' : 'bg-white border-gray-100'}`}>
-                  <div className="w-24 h-24 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0" onClick={() => setSelectedItem(item)}>
-                    <img src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"} className="w-full h-full object-cover" alt={item.name}/>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between mb-1">
-                      <div>
-                        <h3 className="font-bold">{item.name}</h3>
-                        <div className="flex items-center gap-1 text-xs mt-1"><Star size={10} className="text-yellow-500 fill-yellow-500"/> {item.rating}</div>
+              {getFilteredMenu().length === 0 ? (
+                  /* --- EMPTY STATE FOR CATEGORY --- */
+                  <div className="text-center py-12 opacity-50 flex flex-col items-center">
+                      <div className="w-20 h-20 bg-gray-200 rounded-full mb-4 flex items-center justify-center">
+                        <Utensils className="text-gray-400" size={32}/>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-[#2D8F5F] font-bold">{formatPrice(item.price)}</span>
-                        <div className={`w-3 h-3 rounded-full border mt-1 ${item.type==='veg'?'border-green-600 bg-green-600':'border-red-600 bg-red-600'}`}></div>
+                      <h3 className="font-bold text-lg text-[#2D8F5F]">Kalavara is empty for this section...</h3>
+                      <p className="text-sm mt-2">Check back later for tasty updates!</p>
+                  </div>
+              ) : (
+                  getFilteredMenu().map(item => (
+                    <div key={item.id} className={`p-3 rounded-xl shadow-sm border flex gap-4 items-center ${darkMode ? 'bg-[#2a2a2a] border-[#333]' : 'bg-white border-gray-100'}`}>
+                      <div className="w-24 h-24 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0" onClick={() => setSelectedItem(item)}>
+                        <img src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"} className="w-full h-full object-cover" alt={item.name}/>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between mb-1">
+                          <div>
+                            <h3 className="font-bold">{item.name}</h3>
+                            <div className="flex items-center gap-1 text-xs mt-1"><Star size={10} className="text-yellow-500 fill-yellow-500"/> {item.rating}</div>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[#2D8F5F] font-bold">{formatPrice(item.price)}</span>
+                            <div className={`w-3 h-3 rounded-full border mt-1 ${item.type==='veg'?'border-green-600 bg-green-600':'border-red-600 bg-red-600'}`}></div>
+                          </div>
+                        </div>
+                        <p className="text-xs opacity-60 mb-3 line-clamp-2">{item.description}</p>
+                        
+                        {/* --- ADD / COUNTER BUTTON --- */}
+                        {cart.find(c => c.id === item.id) ? (
+                          <div className="flex items-center gap-3 bg-[#2D8F5F] text-white rounded-lg px-2 py-1 w-max shadow-lg shadow-green-200/50">
+                            <button onClick={() => updateQuantity(item, -1)} className="p-1 hover:bg-white/20 rounded active:scale-90 transition"><Minus size={16}/></button>
+                            <span className="font-bold w-4 text-center">{cart.find(c => c.id === item.id).qty}</span>
+                            <button onClick={() => updateQuantity(item, 1)} className="p-1 hover:bg-white/20 rounded active:scale-90 transition"><Plus size={16}/></button>
+                          </div>
+                        ) : (
+                          <button onClick={() => updateQuantity(item, 1)} className="bg-white text-[#2D8F5F] border border-[#2D8F5F] px-6 py-2 rounded-lg text-sm font-extrabold shadow-sm uppercase tracking-wide hover:bg-[#2D8F5F] hover:text-white transition-colors active:scale-95">
+                            ADD
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <p className="text-xs opacity-60 mb-3 line-clamp-2">{item.description}</p>
-                    
-                    {/* --- ADD / COUNTER BUTTON --- */}
-                    {cart.find(c => c.id === item.id) ? (
-                      <div className="flex items-center gap-3 bg-[#2D8F5F] text-white rounded-lg px-2 py-1 w-max shadow-lg shadow-green-200/50">
-                        <button onClick={() => updateQuantity(item, -1)} className="p-1 hover:bg-white/20 rounded active:scale-90 transition"><Minus size={16}/></button>
-                        <span className="font-bold w-4 text-center">{cart.find(c => c.id === item.id).qty}</span>
-                        <button onClick={() => updateQuantity(item, 1)} className="p-1 hover:bg-white/20 rounded active:scale-90 transition"><Plus size={16}/></button>
-                      </div>
-                    ) : (
-                      <button onClick={() => updateQuantity(item, 1)} className="bg-white text-[#2D8F5F] border border-[#2D8F5F] px-6 py-2 rounded-lg text-sm font-extrabold shadow-sm uppercase tracking-wide hover:bg-[#2D8F5F] hover:text-white transition-colors active:scale-95">
-                        ADD
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                  ))
+              )}
             </div>
           </div>
         )}
@@ -724,17 +733,16 @@ function MainApp({ setAppError }) {
                     <input placeholder="Email (Mandatory)" className="w-full p-3 border rounded text-black" onChange={e=>setCheckoutInfo({...checkoutInfo, email:e.target.value})}/>
                     <input placeholder="Phone" className="w-full p-3 border rounded text-black" onChange={e=>setCheckoutInfo({...checkoutInfo, phone:e.target.value})}/>
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 mb-2">
-                        <input 
-                          type="checkbox" 
-                          id="gps-toggle"
-                          checked={attachGps} 
-                          onChange={handleGpsCheck}
-                          className="w-4 h-4 accent-[#2D8F5F]"
-                        />
-                        <label htmlFor="gps-toggle" className="text-xs font-bold text-[#2D8F5F] cursor-pointer">
-                          {isLocating ? 'Locating...' : 'Use Current Location (GPS)'}
-                        </label>
+                      <div className="flex items-center justify-end mb-2">
+                         {/* TOGGLE BUTTON */}
+                        <button
+                            type="button"
+                            onClick={() => handleGpsToggle(!attachGps)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none ${attachGps ? 'bg-[#2D8F5F]' : 'bg-gray-300'}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${attachGps ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                        <span className="ml-2 text-xs font-bold text-[#2D8F5F]">{isLocating ? 'Locating...' : 'Use GPS Location'}</span>
                       </div>
                       <input placeholder="Flat / House No" className="w-full p-3 border rounded text-black" value={addrDetails.flat} onChange={e=>setAddrDetails({...addrDetails, flat:e.target.value})}/>
                       <input placeholder="Street" className="w-full p-3 border rounded text-black" value={addrDetails.street} onChange={e=>setAddrDetails({...addrDetails, street:e.target.value})}/>
